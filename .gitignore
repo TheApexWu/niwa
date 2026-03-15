@@ -12,3 +12,6 @@ node_modules/
 photos/
 *.mp4
 *.mov
+dashboard/out/
+dashboard/.claude/
+dashboard/.vite/
