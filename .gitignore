@@ -15,3 +15,5 @@ photos/
 dashboard/out/
 dashboard/.claude/
 dashboard/.vite/
+.playwright-cli/
+niwa/

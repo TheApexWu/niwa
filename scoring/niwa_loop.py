@@ -588,14 +588,27 @@ def main():
         print(f"  Total API time: {total_api:.0f}s ({total_api/len(history):.1f}s/iter)")
 
 
-def capture_frame(output_path: str):
-    """Capture a single frame from webcam."""
+def capture_frame(output_path: str, camera_index: int = 4):
+    """Capture a single frame from webcam with warm-up for auto-exposure."""
     try:
         import cv2
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(camera_index)
+        if not cap.isOpened():
+            # Fallback to other cameras
+            for idx in [1, 0, 3]:
+                cap = cv2.VideoCapture(idx)
+                if cap.isOpened():
+                    print(f"  Using camera {idx}")
+                    break
+        # Warm-up frames for auto-exposure
+        for _ in range(15):
+            cap.read()
         ret, frame = cap.read()
         if ret:
             cv2.imwrite(output_path, frame)
+            print(f"  Captured frame: {frame.shape[1]}x{frame.shape[0]}, brightness={frame.mean():.0f}")
+        else:
+            print("  WARNING: Failed to capture frame")
         cap.release()
     except ImportError:
         print("pip install opencv-python for live camera")
