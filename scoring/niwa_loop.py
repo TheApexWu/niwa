@@ -435,7 +435,7 @@ def main():
     print(f"Strategist: {ARTIST_MODEL} (temp={ARTIST_TEMP})")
     print(f"Memory window: {MEMORY_WINDOW}")
     print(f"Photo dir: {photo_dir.resolve()}")
-    print(f"Robot: {'mock' if args.mock_robot else 'manual'}")
+    print(f"Robot: {'mock' if args.mock_robot else 'SO-101 (or manual)'}")
     print(f"Target: {args.iterations} iterations")
     print()
 
