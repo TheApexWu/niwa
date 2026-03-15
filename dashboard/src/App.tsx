@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Eye, Brain, LayoutGrid, Pencil, GripVertical, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Eye, Brain, LayoutGrid } from 'lucide-react';
 import { useNiwa } from './hooks/useNiwa';
 import { StatusBar } from './components/ui/StatusBar';
 import { CameraFeed, type CameraFeedHandle } from './components/panels/CameraFeed';
@@ -44,57 +44,12 @@ function App() {
   const { state, connected, sendCommand, sendRating, commandHistory, toggleSimulation, isSimulating, scramble, registerCapture, rlMetrics } = useNiwa();
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const cameraRef = useRef<CameraFeedHandle>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [layout, setLayout] = useState<PanelSlot[][]>(loadLayout);
-  const dragSource = useRef<{ row: number; col: number } | null>(null);
-  const [dragOver, setDragOver] = useState<{ row: number; col: number } | null>(null);
+  const [layout] = useState<PanelSlot[][]>(loadLayout);
 
   useEffect(() => {
     registerCapture(() => cameraRef.current?.captureFrame() ?? null);
   }, [registerCapture]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
-  }, [layout]);
-
-  const handleDragStart = useCallback((row: number, col: number) => {
-    dragSource.current = { row, col };
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, row: number, col: number) => {
-    e.preventDefault();
-    setDragOver({ row, col });
-  }, []);
-
-  const handleDrop = useCallback((row: number, col: number) => {
-    const src = dragSource.current;
-    if (!src || (src.row === row && src.col === col)) {
-      dragSource.current = null;
-      setDragOver(null);
-      return;
-    }
-    setLayout(prev => {
-      const next = prev.map(r => r.map(s => ({ ...s })));
-      const srcSlot = next[src.row][src.col];
-      const dstSlot = next[row][col];
-      // Swap IDs only, keep colSpan in place
-      const tmpId = srcSlot.id;
-      srcSlot.id = dstSlot.id;
-      dstSlot.id = tmpId;
-      return next;
-    });
-    dragSource.current = null;
-    setDragOver(null);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    dragSource.current = null;
-    setDragOver(null);
-  }, []);
-
-  const resetLayout = useCallback(() => {
-    setLayout(DEFAULT_OVERVIEW.map(row => row.map(s => ({ ...s }))));
-  }, []);
 
   const renderPanel = (id: string) => {
     switch (id) {
@@ -184,30 +139,10 @@ function App() {
                 {row.map((slot, colIdx) => (
                   <div
                     key={`${rowIdx}-${colIdx}`}
-                    className={`relative h-full overflow-hidden ${
-                      isEditing ? 'cursor-grab active:cursor-grabbing' : ''
-                    } ${
-                      dragOver?.row === rowIdx && dragOver?.col === colIdx
-                        ? 'ring-2 ring-niwa-accent ring-offset-2 ring-offset-niwa-bg rounded-2xl'
-                        : ''
-                    }`}
+                    className="relative h-full overflow-hidden"
                     style={{ gridColumn: `span ${slot.colSpan} / span ${slot.colSpan}` }}
-                    draggable={isEditing}
-                    onDragStart={() => handleDragStart(rowIdx, colIdx)}
-                    onDragOver={(e) => handleDragOver(e, rowIdx, colIdx)}
-                    onDrop={() => handleDrop(rowIdx, colIdx)}
-                    onDragEnd={handleDragEnd}
-                    onDragLeave={() => setDragOver(null)}
                   >
                     {renderPanel(slot.id)}
-                    {isEditing && (
-                      <div className="absolute inset-0 z-10 rounded-2xl border-2 border-dashed border-niwa-accent/40 bg-niwa-accent/5 flex items-center justify-center pointer-events-none">
-                        <div className="bg-niwa-bg/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 pointer-events-auto">
-                          <GripVertical size={14} className="text-niwa-accent" />
-                          <span className="text-xs text-niwa-accent font-medium capitalize">{slot.id.replace('_', ' ')}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -252,27 +187,6 @@ function App() {
         )}
       </main>
 
-      {/* Edit mode toggle */}
-      <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
-        {isEditing && (
-          <button
-            onClick={resetLayout}
-            className="glass-card px-3 py-2 text-xs text-niwa-text-dim hover:text-niwa-text transition-colors animate-fade-in"
-          >
-            Reset layout
-          </button>
-        )}
-        <button
-          onClick={() => setIsEditing(v => !v)}
-          className={`p-3 rounded-full shadow-lg transition-all ${
-            isEditing
-              ? 'bg-niwa-accent text-white glow-accent'
-              : 'glass-card text-niwa-text-muted hover:text-niwa-accent'
-          }`}
-        >
-          {isEditing ? <X size={18} /> : <Pencil size={18} />}
-        </button>
-      </div>
 
       <footer className="glass-card !rounded-none !border-x-0 !border-b-0 px-6 py-2 flex items-center justify-between text-[10px] text-niwa-text-muted">
         <span>NIWA v1.0 &bull; Nebius.Build SF 2026 &bull; Physical AI &gt; Vision-Language Agents</span>

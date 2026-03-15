@@ -17,19 +17,14 @@ export function PredictionChart({ state }: PredictionChartProps) {
   }));
 
   const recentErrors = data.slice(-5).map(d => d.error);
-  const earlyErrors = data.slice(0, 5).map(d => d.error);
   const avgRecent = recentErrors.length ? recentErrors.reduce((a, b) => a + b, 0) / recentErrors.length : 0;
-  const avgEarly = earlyErrors.length ? earlyErrors.reduce((a, b) => a + b, 0) / earlyErrors.length : 0;
-  const understanding = avgEarly > 0 ? Math.round((1 - avgRecent / avgEarly) * 100) : 0;
 
   return (
     <Panel
       title="Predicted vs Actual Delta"
       icon={<Crosshair size={14} className="text-niwa-artist" />}
-      badge={`${understanding}% understanding`}
-      badgeColor={understanding > 60 ? 'bg-niwa-positive/80' : 'bg-niwa-critic/80'}
     >
-      <div className="h-40">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(52, 211, 153, 0.08)" />
@@ -44,6 +39,8 @@ export function PredictionChart({ state }: PredictionChartProps) {
                 fontSize: '11px',
                 color: '#e2e8f0',
               }}
+              itemStyle={{ color: '#e2e8f0' }}
+              labelStyle={{ color: '#94a3b8' }}
             />
             <ReferenceLine y={0} stroke="rgba(52, 211, 153, 0.1)" />
             <Bar dataKey="predicted" name="Predicted" radius={[2, 2, 0, 0]} maxBarSize={20}>
@@ -60,23 +57,22 @@ export function PredictionChart({ state }: PredictionChartProps) {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-[10px]">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-niwa-artist/60" />
-            <span className="text-niwa-text-muted">Predicted</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-niwa-positive/80" />
-            <span className="text-niwa-text-muted">Actual (followed)</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-sm bg-niwa-negative/80" />
-            <span className="text-niwa-text-muted">Actual (rejected)</span>
-          </div>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[10px]">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm bg-niwa-artist/60" />
+          <span className="text-niwa-text-muted">Predicted</span>
         </div>
-        <div className="text-niwa-text-dim">
-          Avg error: <span className={`font-mono font-bold ${avgRecent <= 1 ? 'text-niwa-positive' : 'text-niwa-critic'}`}>{avgRecent.toFixed(1)}</span>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm bg-niwa-positive/80" />
+          <span className="text-niwa-text-muted">Actual (followed)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm bg-niwa-negative/80" />
+          <span className="text-niwa-text-muted">Actual (rejected)</span>
+        </div>
+        <div className="flex items-center gap-1 text-niwa-text-dim">
+          <span>Avg error:</span>
+          <span className={`font-mono font-bold ${avgRecent <= 1 ? 'text-niwa-positive' : 'text-niwa-critic'}`}>{avgRecent.toFixed(1)}</span>
         </div>
       </div>
     </Panel>

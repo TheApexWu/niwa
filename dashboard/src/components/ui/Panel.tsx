@@ -57,8 +57,8 @@ export function Panel({ title, icon, badge, badgeColor = 'bg-niwa-accent', child
   }
 
   return (
-    <div className={`glass-card p-4 h-full flex flex-col ${glowClass || ''} ${className}`}>
-      <div className="flex items-center justify-between mb-3 shrink-0">
+    <div className={`glass-card pt-4 pl-4 pb-2 pr-0 h-full flex flex-col ${glowClass || ''} ${className}`}>
+      <div className="flex items-center justify-between mb-3 shrink-0 pr-4">
         <div className="flex items-center gap-2">
           {icon}
           <h3 className="text-sm font-semibold text-niwa-text">{title}</h3>
@@ -73,7 +73,7 @@ export function Panel({ title, icon, badge, badgeColor = 'bg-niwa-accent', child
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-auto min-h-0">
+      <div className="flex-1 flex flex-col overflow-auto min-h-0 pr-4">
         {children}
       </div>
     </div>

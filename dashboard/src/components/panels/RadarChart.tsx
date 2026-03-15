@@ -25,9 +25,9 @@ export function RadarChartPanel({ state }: RadarChartProps) {
       badge="6D"
       badgeColor="bg-niwa-accent/60"
     >
-      <div className="h-52">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsRadar data={data} cx="50%" cy="50%" outerRadius="70%">
+          <RechartsRadar data={data} cx="52%" cy="48%" outerRadius="70%">
             <PolarGrid stroke="rgba(52, 211, 153, 0.1)" />
             <PolarAngleAxis
               dataKey="dimension"
@@ -62,9 +62,9 @@ export function RadarChartPanel({ state }: RadarChartProps) {
       </div>
 
       {/* Priority drift indicators */}
-      <div className="mt-2 space-y-1">
+      <div className="mt-4 space-y-1 text-center">
         <p className="text-[10px] text-niwa-text-muted font-medium uppercase tracking-wider">Priority Drift</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 justify-center">
           {state.active_dimensions.filter(d => d !== 'overall').map(dim => {
             const initial = state.initial_priorities[dim] || 0;
             const current = state.current_priorities[dim] || 0;

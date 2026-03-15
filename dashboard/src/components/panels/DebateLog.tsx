@@ -75,8 +75,9 @@ export function DebateLog({ state }: DebateLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current?.parentElement;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [state.iterations.length]);
 
@@ -87,7 +88,7 @@ export function DebateLog({ state }: DebateLogProps) {
       badge={`${state.iterations.filter(i => !i.artist.followed_critic).length} rejections`}
       badgeColor="bg-niwa-negative/80"
     >
-      <div ref={scrollRef} className="h-64 overflow-y-auto pr-2 space-y-0">
+      <div ref={scrollRef} className="space-y-0 ml-2">
         {state.iterations.map((iter, i) => (
           <IterationEntry key={iter.id} iter={iter} isLatest={i === state.iterations.length - 1} />
         ))}
