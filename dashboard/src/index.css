@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-niwa-bg: #060608;
+  --color-niwa-surface: #10101a;
+  --color-niwa-surface-2: #1a1a26;
+  --color-niwa-border: #1e3a2e;
+  --color-niwa-accent: #10b981;
+  --color-niwa-accent-bright: #34d399;
+  --color-niwa-accent-dim: #059669;
+  --color-niwa-critic: #f59e0b;
+  --color-niwa-artist: #06b6d4;
+  --color-niwa-positive: #10b981;
+  --color-niwa-negative: #ef4444;
+  --color-niwa-text: #e2e8f0;
+  --color-niwa-text-dim: #94a3b8;
+  --color-niwa-text-muted: #64748b;
+  --color-niwa-pink: #ec4899;
+  --color-niwa-green: #22c55e;
+  --color-niwa-blue: #3b82f6;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html {
+  background-color: var(--color-niwa-bg);
+  color: var(--color-niwa-text);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-niwa-surface); }
+::-webkit-scrollbar-thumb { background: var(--color-niwa-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-niwa-text-muted); }
+
+/* Glass card base */
+.glass-card {
+  background: rgba(16, 16, 24, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(52, 211, 153, 0.1);
+  border-radius: 16px;
+}
+
+/* Glow utilities */
+.glow-critic { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+.glow-artist { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+.glow-accent { box-shadow: 0 0 30px rgba(16, 185, 129, 0.15), inset 0 0 30px rgba(16, 185, 129, 0.03); }
+.glow-accent-strong { box-shadow: 0 0 40px rgba(16, 185, 129, 0.25); }
+
+/* Animations */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse-live { animation: pulse-live 2s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-blink { animation: blink 1s step-end infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
+}
+.animate-glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
