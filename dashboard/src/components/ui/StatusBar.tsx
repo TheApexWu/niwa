@@ -1,4 +1,4 @@
-import { Wifi, WifiOff, Play, Pause, Shuffle, Bot } from 'lucide-react';
+import { Wifi, WifiOff, Play, Pause, Shuffle } from 'lucide-react';
 import type { NiwaState } from '../../types/niwa';
 
 interface StatusBarProps {
@@ -40,15 +40,8 @@ export function StatusBar({ state, connected, isSimulating, onToggleSimulation, 
           </div>
         </div>
 
-        {/* Center: System info */}
-        <div className="flex items-center gap-4 text-[10px] text-niwa-text-muted">
-          <div className="flex items-center gap-1">
-            <Bot size={10} />
-            <span className={state.robot_status === 'connected' || state.robot_status === 'idle' ? 'text-niwa-positive' : state.robot_status === 'moving' ? 'text-niwa-artist' : 'text-niwa-negative'}>
-              SO-101 {state.robot_status}
-            </span>
-          </div>
-        </div>
+        {/* Center spacer */}
+        <div />
 
         {/* Right: Controls */}
         <div className="flex items-center gap-2">

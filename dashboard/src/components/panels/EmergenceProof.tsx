@@ -48,8 +48,6 @@ export function EmergenceProof({ state }: EmergenceProofProps) {
     <Panel
       title="Emergence Proof"
       icon={<Sparkles size={14} className="text-niwa-accent" />}
-      badge="KEY EVIDENCE"
-      badgeColor="bg-gradient-to-r from-niwa-critic to-niwa-artist"
       glowClass="glow-accent"
     >
       <div className="space-y-4">
@@ -58,24 +56,18 @@ export function EmergenceProof({ state }: EmergenceProofProps) {
           <h4 className="text-[10px] font-bold text-niwa-text uppercase tracking-wider mb-2">1. Priority Drift (Strongest Evidence)</h4>
           <div className="space-y-1.5">
             {priorityDriftEntries.map(entry => (
-              <div key={entry.dimension} className="flex items-center gap-2">
-                <span className="text-[10px] text-niwa-text-dim w-24 capitalize truncate">{entry.dimension.replace('_', ' ')}</span>
-                <div className="flex-1 flex items-center gap-1">
-                  <div className="w-8 text-right">
-                    <span className="text-[9px] font-mono text-niwa-text-muted">{entry.initial}</span>
-                  </div>
-                  <div className="flex-1 h-2 bg-niwa-bg rounded-full overflow-hidden relative">
-                    <div className="absolute inset-y-0 left-0 bg-niwa-text-muted/20 rounded-full" style={{ width: `${entry.initial}%` }} />
-                    <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ${entry.drift > 0 ? 'bg-niwa-positive' : 'bg-niwa-negative'}`} style={{ width: `${entry.current}%` }} />
-                  </div>
-                  <div className="w-8">
-                    <span className="text-[9px] font-mono text-niwa-text">{entry.current}</span>
-                  </div>
-                  <ArrowRight size={8} className="text-niwa-text-muted" />
-                  <span className={`text-[9px] font-mono font-bold ${entry.drift > 0 ? 'text-niwa-positive' : entry.drift < 0 ? 'text-niwa-negative' : 'text-niwa-text-muted'}`}>
-                    {entry.drift > 0 ? '+' : ''}{entry.drift}
-                  </span>
+              <div key={entry.dimension} className="grid grid-cols-[5.5rem_1.5rem_1fr_1.5rem_0.75rem_2rem] items-center gap-1.5">
+                <span className="text-[10px] text-niwa-text-dim capitalize truncate">{entry.dimension.replace('_', ' ')}</span>
+                <span className="text-[9px] font-mono text-niwa-text-muted text-right">{entry.initial}</span>
+                <div className="h-2 bg-niwa-bg rounded-full overflow-hidden relative">
+                  <div className="absolute inset-y-0 left-0 bg-niwa-text-muted/20 rounded-full" style={{ width: `${entry.initial}%` }} />
+                  <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ${entry.drift > 0 ? 'bg-niwa-positive' : 'bg-niwa-negative'}`} style={{ width: `${entry.current}%` }} />
                 </div>
+                <span className="text-[9px] font-mono text-niwa-text text-left">{entry.current}</span>
+                <ArrowRight size={8} className="text-niwa-text-muted" />
+                <span className={`text-[9px] font-mono font-bold text-right ${entry.drift > 0 ? 'text-niwa-positive' : entry.drift < 0 ? 'text-niwa-negative' : 'text-niwa-text-muted'}`}>
+                  {entry.drift > 0 ? '+' : ''}{entry.drift}
+                </span>
               </div>
             ))}
           </div>
@@ -119,7 +111,7 @@ export function EmergenceProof({ state }: EmergenceProofProps) {
         {/* 4. Shift Timeline */}
         <div>
           <h4 className="text-[10px] font-bold text-niwa-text uppercase tracking-wider mb-2">4. Shift Timeline</h4>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
+          <div className="space-y-2">
             {priorityShifts.map(s => (
               <div key={`p-${s.id}`} className="flex items-start gap-2 text-[10px]">
                 <span className="text-niwa-critic font-mono shrink-0">#{s.id}</span>
