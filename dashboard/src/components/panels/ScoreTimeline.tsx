@@ -11,21 +11,19 @@ export function ScoreTimeline({ state }: ScoreTimelineProps) {
   const data = state.iterations.map((iter) => ({
     iteration: iter.id,
     overall: iter.overall_score,
-    balance: iter.dimension_scores.balance || 0,
-    spacing: iter.dimension_scores.spacing || 0,
-    grouping: iter.dimension_scores.grouping || 0,
-    negative_space: iter.dimension_scores.negative_space || 0,
-    color_harmony: iter.dimension_scores.color_harmony || 0,
+    stability: iter.dimension_scores.stability || 0,
+    block_looseness: iter.dimension_scores.block_looseness || 0,
+    risk_level: iter.dimension_scores.risk_level || 0,
+    move_success: iter.dimension_scores.move_success || 0,
     rejected: !iter.artist.followed_critic,
   }));
 
   const dimensionColors: Record<string, string> = {
     overall: '#10b981',
-    balance: '#f59e0b',
-    spacing: '#06b6d4',
-    grouping: '#22c55e',
-    negative_space: '#a855f7',
-    color_harmony: '#ec4899',
+    stability: '#f59e0b',
+    block_looseness: '#06b6d4',
+    risk_level: '#ef4444',
+    move_success: '#22c55e',
   };
 
   return (

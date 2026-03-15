@@ -1,9 +1,9 @@
 """
-NIWA - Zero-training robot manipulation through in-context reinforcement learning.
+NIWA Jenga - Zero-training robot manipulation through in-context reinforcement learning.
 
-Two agents on Nebius Token Factory learn to arrange physical objects:
-  Critic (Qwen2.5-VL-72B) scores arrangements via vision.
-  Artist (Gemma-3-27B) proposes moves based on score history.
+Two agents on Nebius Token Factory learn to play Jenga:
+  Critic (Qwen2.5-VL-72B) evaluates tower state via vision.
+  Strategist (Gemma-3-27B) proposes which block to push based on score history.
 
 Usage:
   python scoring/niwa_loop.py --photo-dir ./photos --iterations 20
@@ -24,26 +24,30 @@ from pydantic import BaseModel, Field
 
 # --- Guided JSON Schemas ---
 class CriticResponse(BaseModel):
-    balance: int = Field(description="Score 0-100 for visual balance/weight distribution")
-    spacing: int = Field(description="Score 0-100 for spacing between objects")
-    grouping: int = Field(description="Score 0-100 for intentional clustering/grouping")
-    negative_space: int = Field(description="Score 0-100 for use of empty space")
-    color_harmony: int = Field(description="Score 0-100 for color relationships")
-    overall: int = Field(description="Score 0-100 overall aesthetic quality")
-    priority: str = Field(description="Which dimension to improve next")
-    suggestion: str = Field(description="Specific move suggestion for improvement")
-    comparison: Optional[str] = Field(default=None, description="Comparison to previous arrangement")
+    stability: int = Field(description="Score 0-100 for tower verticality and structural integrity")
+    block_looseness: int = Field(description="Score 0-100 for how many blocks appear pushable")
+    risk_level: int = Field(description="Score 0-100 for collapse likelihood (100=about to fall)")
+    move_success: int = Field(description="Score 0-100 for how clean the last push was")
+    overall: int = Field(description="Score 0-100 overall game state quality")
+    priority: str = Field(description="Which dimension to focus on next")
+    suggestion: str = Field(description="Specific block to push: row, position, direction")
+    target_row: int = Field(default=5, description="Suggested row to push (1=bottom)")
+    target_position: str = Field(default="middle", description="left|middle|right within the row")
+    push_direction: str = Field(default="left_to_right", description="left_to_right|right_to_left")
+    comparison: Optional[str] = Field(default=None, description="Comparison to previous tower state")
 
 class ArtistAction(BaseModel):
-    block_color: str = Field(description="Color of block to move")
-    from_position: int = Field(description="Current grid position (1-4)")
-    to_position: int = Field(description="Target grid position (1-4)")
+    target_row: int = Field(description="Which row to push from (1=bottom)")
+    target_position: str = Field(default="middle", description="left|middle|right within the row")
+    push_direction: str = Field(default="left_to_right", description="left_to_right|right_to_left")
+    push_force: str = Field(default="gentle", description="gentle|medium|firm")
+    approach_speed: str = Field(default="slow", description="slow|normal")
 
 class ArtistResponse(BaseModel):
     action: ArtistAction = Field(description="The move to execute")
     predicted_delta: int = Field(description="Expected overall score change from this move")
     followed_critic: bool = Field(description="Whether this move follows the Critic's suggestion")
-    instinct: str = Field(description="Your current aesthetic instinct in one sentence")
+    instinct: str = Field(description="Your current strategic instinct about safe block selection in one sentence")
     reasoning: str = Field(description="Why you chose this move")
 
 CRITIC_SCHEMA = CriticResponse.model_json_schema()
@@ -53,7 +57,7 @@ ARTIST_SCHEMA = ArtistResponse.model_json_schema()
 CRITIC_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
 ARTIST_MODEL = "google/gemma-3-27b-it"
 MEMORY_WINDOW = 20
-DIMENSIONS = ["balance", "spacing", "grouping", "negative_space", "color_harmony", "overall"]
+DIMENSIONS = ["stability", "block_looseness", "risk_level", "move_success", "overall"]
 CRITIC_TEMP = 0.3
 ARTIST_TEMP = 0.5
 
@@ -78,9 +82,9 @@ def build_critic_prompt(photo_b64: str, history: list[dict]) -> list[dict]:
         first = history[0]["scores"]
         lines.append(
             f"Anchor (iter 1): overall={first['overall']}, "
-            f"balance={first['balance']}, spacing={first['spacing']}, "
-            f"grouping={first['grouping']}, neg_space={first.get('negative_space', '?')}, "
-            f"color_harmony={first.get('color_harmony', '?')}"
+            f"stability={first['stability']}, block_looseness={first['block_looseness']}, "
+            f"risk_level={first.get('risk_level', '?')}, "
+            f"move_success={first.get('move_success', '?')}"
         )
         lines.append("")
 
@@ -90,10 +94,10 @@ def build_critic_prompt(photo_b64: str, history: list[dict]) -> list[dict]:
             follow_str = "followed" if h.get("followed_critic") else "REJECTED"
             lines.append(
                 f"Iter {h['iteration']}: overall={s['overall']}, "
-                f"balance={s['balance']}, spacing={s['spacing']}, "
-                f"grouping={s['grouping']}, color_harmony={s.get('color_harmony', '?')} | "
+                f"stability={s['stability']}, block_looseness={s['block_looseness']}, "
+                f"risk_level={s.get('risk_level', '?')}, move_success={s.get('move_success', '?')} | "
                 f"priority: {h.get('critic_priority', 'not stated')} | "
-                f"Artist {follow_str} | {delta_str}"
+                f"Strategist {follow_str} | {delta_str}"
             )
 
         if len(history) >= 3:
@@ -121,7 +125,7 @@ def build_critic_prompt(photo_b64: str, history: list[dict]) -> list[dict]:
             {"type": "text", "text": (
                 load_soul("agents/critic") +
                 history_text +
-                "\n\nScore this arrangement now. Base your scores on what you see, not on history momentum."
+                "\n\nScore this tower state now. Base your scores on what you see, not on history momentum."
             )},
             {"type": "image_url", "image_url": {
                 "url": f"data:image/jpeg;base64,{photo_b64}"
@@ -187,7 +191,7 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
         f"Critic suggestion: {critic_scores.get('suggestion', 'none')}",
         f"Dimensions: {', '.join(f'{d}={critic_scores.get(d, '?')}' for d in DIMENSIONS if d != 'overall')}",
     ]
-    sections.append("Current arrangement:\n" + "\n".join(critic_lines))
+    sections.append("Current tower state:\n" + "\n".join(critic_lines))
 
     # Move history -- only show positive-delta iterations to prevent Monea degeneration
     if history:
@@ -199,7 +203,7 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
             # Feed positive examples as learning signal
             for h in positive[-MEMORY_WINDOW:]:
                 move = h.get("move", {})
-                move_desc = f"{move.get('block_color', '?')} pos {move.get('from_position', '?')}->{move.get('to_position', '?')}"
+                move_desc = f"row {move.get('target_row', '?')} {move.get('target_position', '?')} push {move.get('push_direction', '?')} ({move.get('push_force', 'gentle')})"
                 follow_str = "followed" if h.get("followed_critic") else "rejected"
                 move_lines.append(f"  {move_desc} ({follow_str}, delta: {h['actual_delta']:+d})")
             if move_lines:
@@ -236,7 +240,7 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
             "text": (
                 load_soul("agents/artist") +
                 "\n\n" + "\n\n".join(sections) +
-                "\n\nDecide your next move."
+                "\n\nDecide which block to push next."
             )
         }]
     }]
@@ -248,11 +252,13 @@ def call_model(model: str, messages: list[dict], max_tokens: int = 400,
         kwargs = dict(
             model=model, messages=messages,
             temperature=temperature, max_tokens=max_tokens,
-            response_format={"type": "json_object"},
         )
         # guided_json only works on text-only models, not VLMs
+        # When using guided_json, don't also set response_format (Nebius rejects conflicting modes)
         if schema and "VL" not in model:
             kwargs["extra_body"] = {"guided_json": schema}
+        else:
+            kwargs["response_format"] = {"type": "json_object"}
 
         response = client.chat.completions.create(**kwargs)
         raw = response.choices[0].message.content
@@ -345,7 +351,7 @@ def plot_results(history: list[dict], output_path: str):
         values = [h["scores"].get(dim, 0) for h in history]
         ax1.plot(iterations, values, marker="o", label=dim, linewidth=1.5, markersize=4)
     ax1.set_ylabel("Score")
-    ax1.set_title("NIWA: Aesthetic Dimension Scores")
+    ax1.set_title("NIWA Jenga: Tower Dimension Scores")
     ax1.legend(fontsize=8, loc="upper left")
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim(y_min, y_max)
@@ -413,12 +419,20 @@ def main():
         from robot.mock_controller import MockController
         robot = MockController()
         robot.connect()
+    else:
+        try:
+            from robot.so101_jenga import SO101JengaController
+            robot = SO101JengaController()
+            robot.connect()
+        except Exception as e:
+            print(f"WARNING: Could not connect to SO-101: {e}")
+            print("Running in manual mode (execute moves by hand)")
 
     print("=" * 60)
-    print("NIWA - In-Context Reinforcement Learning")
+    print("NIWA Jenga - In-Context Reinforcement Learning")
     print("=" * 60)
     print(f"Critic: {CRITIC_MODEL} (temp={CRITIC_TEMP})")
-    print(f"Artist: {ARTIST_MODEL} (temp={ARTIST_TEMP})")
+    print(f"Strategist: {ARTIST_MODEL} (temp={ARTIST_TEMP})")
     print(f"Memory window: {MEMORY_WINDOW}")
     print(f"Photo dir: {photo_dir.resolve()}")
     print(f"Robot: {'mock' if args.mock_robot else 'manual'}")
@@ -486,7 +500,7 @@ def main():
         print(f"    suggestion: {critic_result.get('suggestion', '?')}")
 
         # --- Artist ---
-        print("  Calling Artist...")
+        print("  Calling Strategist...")
         t0 = time.time()
         try:
             artist_msgs = build_artist_prompt(critic_result, history)
@@ -508,9 +522,9 @@ def main():
         if prev_overall is not None and len(history) > 0:
             history[-1]["actual_delta"] = current_overall - prev_overall
 
-        print(f"  Artist ({artist_time:.1f}s):")
+        print(f"  Strategist ({artist_time:.1f}s):")
         print(f"    instinct: {artist_result.get('instinct', 'not stated')[:100]}")
-        print(f"    move: {move.get('block_color', '?')} pos {move.get('from_position', '?')}->{move.get('to_position', '?')}")
+        print(f"    move: row {move.get('target_row', '?')} {move.get('target_position', '?')} push {move.get('push_direction', '?')} ({move.get('push_force', 'gentle')})")
         print(f"    predicted delta: {predicted_delta:+d}")
         print(f"    followed critic: {followed}")
 
@@ -522,6 +536,9 @@ def main():
             "critic_priority": critic_priority,
             "critic_suggestion": critic_result.get("suggestion", ""),
             "critic_comparison": critic_result.get("comparison"),
+            "critic_target_row": critic_result.get("target_row"),
+            "critic_target_position": critic_result.get("target_position"),
+            "critic_push_direction": critic_result.get("push_direction"),
             "move": move,
             "predicted_delta": predicted_delta,
             "actual_delta": None,

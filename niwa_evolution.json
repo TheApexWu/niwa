@@ -1,0 +1,34 @@
+[
+  {
+    "iteration": 1,
+    "timestamp": "2026-03-15T15:26:01.984540",
+    "photo": "jenga_001.jpg",
+    "scores": {
+      "stability": 50,
+      "block_looseness": 30,
+      "risk_level": 60,
+      "move_success": 0,
+      "overall": 20
+    },
+    "critic_priority": "initial assessment focusing on stability due to lack of visual data",
+    "critic_suggestion": "push row 5, position left, from right_to_left",
+    "critic_comparison": null,
+    "critic_target_row": 5,
+    "critic_target_position": "left",
+    "critic_push_direction": "right_to_left",
+    "move": {
+      "target_row": 5,
+      "target_position": "left",
+      "push_direction": "right_to_left",
+      "push_force": "gentle",
+      "approach_speed": "slow"
+    },
+    "predicted_delta": 5,
+    "actual_delta": null,
+    "followed_critic": true,
+    "artist_instinct": "Given the initial state and lack of move history, I will defer to the Critic's assessment of stability.",
+    "artist_reasoning": "Following critic. Initial assessment, low risk, gentle push.",
+    "api_time_critic": 4.32,
+    "api_time_artist": 2.77
+  }
+]

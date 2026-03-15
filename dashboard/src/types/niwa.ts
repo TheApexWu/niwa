@@ -2,11 +2,10 @@
 export type DimensionKey = string;
 
 export const DEFAULT_DIMENSIONS: DimensionKey[] = [
-  'balance',
-  'spacing',
-  'grouping',
-  'negative_space',
-  'color_harmony',
+  'stability',
+  'block_looseness',
+  'risk_level',
+  'move_success',
   'overall',
 ];
 
@@ -14,16 +13,18 @@ export interface DimensionScores {
   [key: string]: number; // 1-100
 }
 
-// ---- Block / Grid ----
-export type BlockColor = 'pink' | 'green' | 'blue';
-export type Orientation = 'flat' | 'on-side' | 'vertical' | 'rotated';
+// ---- Jenga move types ----
+export type PushForce = 'gentle' | 'medium' | 'firm';
+export type PushSpeed = 'slow' | 'normal';
+export type BlockPosition = 'left' | 'middle' | 'right';
+export type PushDirection = 'left_to_right' | 'right_to_left';
 
 export interface MoveCommand {
-  block_color: BlockColor;
-  block_id: string | number;
-  from_position: number;
-  to_position: number;
-  orientation: Orientation | string;
+  target_row: number;
+  target_position: BlockPosition;
+  push_direction: PushDirection;
+  push_force: PushForce;
+  approach_speed: PushSpeed;
 }
 
 // ---- Raw iteration data from niwa_loop.py JSON output ----
@@ -35,12 +36,15 @@ export interface IterationRaw {
   critic_priority: string;
   critic_suggestion: string;
   critic_comparison: string | null;
+  critic_target_row?: number;
+  critic_target_position?: string;
+  critic_push_direction?: string;
   move: {
-    block_color?: string;
-    block_id?: number;
-    from_position?: number;
-    to_position?: number;
-    orientation?: string;
+    target_row?: number;
+    target_position?: string;
+    push_direction?: string;
+    push_force?: string;
+    approach_speed?: string;
   };
   predicted_delta: number;
   actual_delta: number | null;

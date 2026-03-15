@@ -22,7 +22,7 @@ export function RadarChartPanel({ state }: RadarChartProps) {
     <Panel
       title="Dimension Radar"
       icon={<Target size={14} className="text-niwa-accent" />}
-      badge="6D"
+      badge="5D"
       badgeColor="bg-niwa-accent/60"
     >
       <div className="h-52">

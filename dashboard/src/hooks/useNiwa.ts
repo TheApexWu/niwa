@@ -27,11 +27,11 @@ function mapRawIteration(raw: IterationRaw, prevRaw: IterationRaw | null): Itera
       priority: raw.critic_priority,
       scores: raw.scores,
       suggestion: {
-        block_color: (raw.move?.block_color as 'pink' | 'green' | 'blue') || 'pink',
-        block_id: String(raw.move?.block_id ?? 0),
-        from_position: raw.move?.from_position ?? 0,
-        to_position: raw.move?.to_position ?? 0,
-        orientation: (raw.move?.orientation as 'flat') || 'flat',
+        target_row: raw.critic_target_row ?? raw.move?.target_row ?? 5,
+        target_position: ((raw.critic_target_position ?? raw.move?.target_position) as 'left' | 'middle' | 'right') || 'middle',
+        push_direction: ((raw.critic_push_direction ?? raw.move?.push_direction) as 'left_to_right' | 'right_to_left') || 'left_to_right',
+        push_force: (raw.move?.push_force as 'gentle' | 'medium' | 'firm') || 'gentle',
+        approach_speed: (raw.move?.approach_speed as 'slow' | 'normal') || 'slow',
       },
       reasoning: raw.critic_suggestion,
       artist_feedback: raw.critic_comparison || '',
@@ -39,11 +39,11 @@ function mapRawIteration(raw: IterationRaw, prevRaw: IterationRaw | null): Itera
     artist: {
       instinct: raw.artist_instinct,
       move: {
-        block_color: (raw.move?.block_color as 'pink' | 'green' | 'blue') || 'pink',
-        block_id: String(raw.move?.block_id ?? 0),
-        from_position: raw.move?.from_position ?? 0,
-        to_position: raw.move?.to_position ?? 0,
-        orientation: (raw.move?.orientation as 'flat') || 'flat',
+        target_row: raw.move?.target_row ?? 5,
+        target_position: (raw.move?.target_position as 'left' | 'middle' | 'right') || 'middle',
+        push_direction: (raw.move?.push_direction as 'left_to_right' | 'right_to_left') || 'left_to_right',
+        push_force: (raw.move?.push_force as 'gentle' | 'medium' | 'firm') || 'gentle',
+        approach_speed: (raw.move?.approach_speed as 'slow' | 'normal') || 'slow',
       },
       predicted_delta: raw.predicted_delta,
       followed_critic: raw.followed_critic,
@@ -111,13 +111,15 @@ export function useNiwa(): UseNiwaReturn {
     const followRate = iterations.filter((it) => it.artist.followed_critic).length / iterations.length;
     const humanRatings = iterations
       .filter((it) => it.human_rating !== undefined)
-      .map((it) => ({ iteration: it.id, rating: it.human_rating! }));
+      .map((it) => ({ iteration: it.id, rating: it.human_rating!, timestamp: it.timestamp }));
     return {
       reward_history: rewards,
       mean_reward_last_10: meanLast10,
       policy_entropy: 1 - followRate,
       total_episodes: iterations.length,
       human_ratings: humanRatings,
+      value_loss: 0,
+      recommendation_history: [],
     };
   }, []);
 
@@ -181,20 +183,20 @@ export function useNiwa(): UseNiwaReturn {
           id: prev.current_iteration + 1,
           timestamp: new Date().toISOString(),
           critic: {
-            priority: 'RECOVERY MODE: Arrangement scrambled. Rebuilding from chaos.',
+            priority: 'RECOVERY MODE: Tower collapsed. Rebuilding strategy from scratch.',
             scores: Object.fromEntries(
               prev.active_dimensions.map((d) => [d, Math.floor(Math.random() * 20) + 10]),
             ),
-            suggestion: { block_color: 'pink', block_id: 'scramble', from_position: 0, to_position: 4, orientation: 'flat' },
+            suggestion: { target_row: 5, target_position: 'middle' as const, push_direction: 'left_to_right' as const, push_force: 'gentle' as const, approach_speed: 'slow' as const },
             reasoning: 'Chaos detected. Falling back to learned priorities.',
             artist_feedback: 'System disrupted. Activating recovery.',
           },
           artist: {
             instinct: 'Scramble detected. Trusting learned instincts.',
-            move: { block_color: 'pink', block_id: 'scramble', from_position: 0, to_position: 4, orientation: 'on-side' },
+            move: { target_row: 5, target_position: 'middle' as const, push_direction: 'left_to_right' as const, push_force: 'gentle' as const, approach_speed: 'slow' as const },
             predicted_delta: 8,
             followed_critic: false,
-            rejection_reasoning: 'Even in recovery, I trust my learned orientation preferences.',
+            rejection_reasoning: 'Even in recovery, I trust my learned row and force preferences.',
           },
           actual_delta: 10,
           overall_score: 22,

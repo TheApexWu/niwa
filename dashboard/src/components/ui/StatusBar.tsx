@@ -28,7 +28,7 @@ export function StatusBar({ state, connected, isSimulating, onToggleSimulation, 
             </div>
             <div>
               <h1 className="text-sm font-bold text-niwa-text tracking-tight">NIWA</h1>
-              <p className="text-[10px] text-niwa-text-muted leading-none">Emergent Taste</p>
+              <p className="text-[10px] text-niwa-text-muted leading-none">Jenga Strategy</p>
             </div>
           </div>
           <div className="h-6 w-px bg-niwa-border" />
