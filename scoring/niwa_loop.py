@@ -342,6 +342,8 @@ def main():
     parser.add_argument("--output", default="niwa_evolution.png")
     parser.add_argument("--mock-robot", action="store_true")
     parser.add_argument("--live-camera", action="store_true", help="Capture from webcam instead of polling directory")
+    parser.add_argument("--resume", type=str, default=None, help="Resume from a previous run JSON file")
+    parser.add_argument("--artist-model", type=str, default=None, help="Override artist model (e.g. MiniMaxAI/MiniMax-M2.1)")
     args = parser.parse_args()
 
     photo_dir = Path(args.photo_dir)
@@ -351,6 +353,11 @@ def main():
     if not os.environ.get("NEBIUS_API_KEY"):
         print("ERROR: Set NEBIUS_API_KEY in .env")
         sys.exit(1)
+
+    # Allow model override
+    global ARTIST_MODEL
+    if args.artist_model:
+        ARTIST_MODEL = args.artist_model
 
     robot = None
     if args.mock_robot:
@@ -369,11 +376,24 @@ def main():
     print(f"Target: {args.iterations} iterations")
     print()
 
+    # Resume from previous run
     history = []
     seen_photos = set()
     prev_overall = None
+    start_iter = 1
 
-    for i in range(1, args.iterations + 1):
+    if args.resume:
+        resume_path = Path(args.resume)
+        if resume_path.exists():
+            history = json.loads(resume_path.read_text())
+            seen_photos = {h["photo"] for h in history}
+            start_iter = len(history) + 1
+            prev_overall = history[-1]["scores"]["overall"] if history else None
+            print(f"Resumed from {resume_path}: {len(history)} iterations loaded")
+            print(f"Continuing from iteration {start_iter}")
+            print()
+
+    for i in range(start_iter, args.iterations + 1):
         print(f"\n{'='*60}")
         print(f"ITERATION {i}/{args.iterations}")
         print("=" * 60)
@@ -400,7 +420,14 @@ def main():
             continue
         critic_time = time.time() - t0
 
-        scores = {dim: critic_result.get(dim, 0) for dim in DIMENSIONS}
+        scores = {}
+        for dim in DIMENSIONS:
+            val = critic_result.get(dim, 0)
+            try:
+                val = max(0, min(100, int(val)))
+            except (ValueError, TypeError):
+                val = 0
+            scores[dim] = val
         critic_priority = critic_result.get("priority", "not stated")
 
         print(f"  Critic ({critic_time:.1f}s):")
@@ -414,7 +441,8 @@ def main():
         t0 = time.time()
         try:
             artist_msgs = build_artist_prompt(critic_result, history)
-            artist_result = call_model(ARTIST_MODEL, artist_msgs, max_tokens=300, temperature=ARTIST_TEMP)
+            artist_max_tokens = 2000 if "MiniMax" in ARTIST_MODEL else 300
+            artist_result = call_model(ARTIST_MODEL, artist_msgs, max_tokens=artist_max_tokens, temperature=ARTIST_TEMP)
         except Exception as e:
             print(f"  ARTIST ERROR: {e}")
             continue
