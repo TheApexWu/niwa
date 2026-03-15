@@ -2,3 +2,4 @@ openai
 python-dotenv
 matplotlib
 opencv-python
+pydantic

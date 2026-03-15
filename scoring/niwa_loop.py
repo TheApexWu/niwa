@@ -13,11 +13,41 @@ Usage:
 import base64, json, os, sys, time, glob, argparse
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 from dotenv import load_dotenv
 load_dotenv()
 
 from openai import OpenAI
+from pydantic import BaseModel, Field
+
+
+# --- Guided JSON Schemas ---
+class CriticResponse(BaseModel):
+    balance: int = Field(description="Score 0-100 for visual balance/weight distribution")
+    spacing: int = Field(description="Score 0-100 for spacing between objects")
+    grouping: int = Field(description="Score 0-100 for intentional clustering/grouping")
+    negative_space: int = Field(description="Score 0-100 for use of empty space")
+    color_harmony: int = Field(description="Score 0-100 for color relationships")
+    overall: int = Field(description="Score 0-100 overall aesthetic quality")
+    priority: str = Field(description="Which dimension to improve next")
+    suggestion: str = Field(description="Specific move suggestion for improvement")
+    comparison: Optional[str] = Field(default=None, description="Comparison to previous arrangement")
+
+class ArtistAction(BaseModel):
+    block_color: str = Field(description="Color of block to move")
+    from_position: int = Field(description="Current grid position (1-4)")
+    to_position: int = Field(description="Target grid position (1-4)")
+
+class ArtistResponse(BaseModel):
+    action: ArtistAction = Field(description="The move to execute")
+    predicted_delta: int = Field(description="Expected overall score change from this move")
+    followed_critic: bool = Field(description="Whether this move follows the Critic's suggestion")
+    instinct: str = Field(description="Your current aesthetic instinct in one sentence")
+    reasoning: str = Field(description="Why you chose this move")
+
+CRITIC_SCHEMA = CriticResponse.model_json_schema()
+ARTIST_SCHEMA = ArtistResponse.model_json_schema()
 
 # --- Config ---
 CRITIC_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
@@ -159,17 +189,23 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
     ]
     sections.append("Current arrangement:\n" + "\n".join(critic_lines))
 
-    # Move history
+    # Move history -- only show positive-delta iterations to prevent Monea degeneration
     if history:
         resolved = [h for h in history if h.get("actual_delta") is not None]
+        positive = [h for h in resolved if h["actual_delta"] > 0]
+        negative = [h for h in resolved if h["actual_delta"] <= 0]
         if resolved:
             move_lines = []
-            for h in resolved[-MEMORY_WINDOW:]:
+            # Feed positive examples as learning signal
+            for h in positive[-MEMORY_WINDOW:]:
                 move = h.get("move", {})
                 move_desc = f"{move.get('block_color', '?')} pos {move.get('from_position', '?')}->{move.get('to_position', '?')}"
                 follow_str = "followed" if h.get("followed_critic") else "rejected"
                 move_lines.append(f"  {move_desc} ({follow_str}, delta: {h['actual_delta']:+d})")
-            sections.append("Recent moves:\n" + "\n".join(move_lines))
+            if move_lines:
+                sections.append(f"Successful moves ({len(positive)}/{len(resolved)} produced gains):\n" + "\n".join(move_lines))
+            if negative:
+                sections.append(f"{len(negative)} moves produced no gain. Avoid repeating similar patterns.")
 
         # Prediction calibration
         calibration = [(h.get("predicted_delta", 0), h["actual_delta"])
@@ -207,13 +243,26 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
 
 
 def call_model(model: str, messages: list[dict], max_tokens: int = 400,
-               temperature: float = 0.4) -> dict:
+               temperature: float = 0.4, schema: dict = None) -> dict:
     for attempt in range(2):
-        response = client.chat.completions.create(
+        kwargs = dict(
             model=model, messages=messages,
             temperature=temperature, max_tokens=max_tokens,
+            response_format={"type": "json_object"},
         )
-        raw = response.choices[0].message.content.strip()
+        # guided_json only works on text-only models, not VLMs
+        if schema and "VL" not in model:
+            kwargs["extra_body"] = {"guided_json": schema}
+
+        response = client.chat.completions.create(**kwargs)
+        raw = response.choices[0].message.content
+        if raw is None:
+            if attempt == 0:
+                print("  [retry] empty response, retrying...")
+                continue
+            return {}
+        raw = raw.strip()
+
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
@@ -414,7 +463,7 @@ def main():
         t0 = time.time()
         try:
             critic_msgs = build_critic_prompt(photo_b64, history)
-            critic_result = call_model(CRITIC_MODEL, critic_msgs, max_tokens=400, temperature=CRITIC_TEMP)
+            critic_result = call_model(CRITIC_MODEL, critic_msgs, max_tokens=400, temperature=CRITIC_TEMP, schema=CRITIC_SCHEMA)
         except Exception as e:
             print(f"  CRITIC ERROR: {e}")
             continue
@@ -442,7 +491,7 @@ def main():
         try:
             artist_msgs = build_artist_prompt(critic_result, history)
             artist_max_tokens = 2000 if "MiniMax" in ARTIST_MODEL else 300
-            artist_result = call_model(ARTIST_MODEL, artist_msgs, max_tokens=artist_max_tokens, temperature=ARTIST_TEMP)
+            artist_result = call_model(ARTIST_MODEL, artist_msgs, max_tokens=artist_max_tokens, temperature=ARTIST_TEMP, schema=ARTIST_SCHEMA)
         except Exception as e:
             print(f"  ARTIST ERROR: {e}")
             continue
