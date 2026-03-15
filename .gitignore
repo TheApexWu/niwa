@@ -6,3 +6,9 @@ agents/coordinator/memory/*.json
 test-results/
 *.egg-info/
 venv/
+.venv/
+node_modules/
+*.log
+photos/
+*.mp4
+*.mov
