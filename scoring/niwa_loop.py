@@ -243,24 +243,35 @@ def build_artist_prompt(critic_scores: dict, history: list[dict]) -> list[dict]:
 
 
 def call_model(model: str, messages: list[dict], max_tokens: int = 400,
-               temperature: float = 0.4, schema: dict = None) -> dict:
+               temperature: float = 0.4, schema: dict = None) -> tuple[dict, list | None]:
+    """Returns (parsed_json, logprobs_list). logprobs_list may be None."""
     for attempt in range(2):
         kwargs = dict(
             model=model, messages=messages,
             temperature=temperature, max_tokens=max_tokens,
             response_format={"type": "json_object"},
+            logprobs=True, top_logprobs=5,
         )
         # guided_json only works on text-only models, not VLMs
         if schema and "VL" not in model:
             kwargs["extra_body"] = {"guided_json": schema}
 
         response = client.chat.completions.create(**kwargs)
+        # Extract logprobs if available
+        lp = response.choices[0].logprobs
+        logprobs_out = None
+        if lp and lp.content:
+            logprobs_out = [
+                {"token": t.token, "logprob": t.logprob,
+                 "top": [{**tp.__dict__} for tp in (t.top_logprobs or [])]}
+                for t in lp.content
+            ]
         raw = response.choices[0].message.content
         if raw is None:
             if attempt == 0:
                 print("  [retry] empty response, retrying...")
                 continue
-            return {}
+            return {}, logprobs_out
         raw = raw.strip()
 
         if raw.startswith("```"):
@@ -271,13 +282,13 @@ def call_model(model: str, messages: list[dict], max_tokens: int = 400,
         end = raw.rfind("}") + 1
         if start >= 0 and end > start:
             try:
-                return json.loads(raw[start:end])
+                return json.loads(raw[start:end]), logprobs_out
             except json.JSONDecodeError:
                 if attempt == 0:
                     print("  [retry] malformed JSON, retrying...")
                     continue
                 raise
-    return {}
+    return {}, None
 
 
 def wait_for_photo(photo_dir: Path, seen: set) -> str:
@@ -463,7 +474,7 @@ def main():
         t0 = time.time()
         try:
             critic_msgs = build_critic_prompt(photo_b64, history)
-            critic_result = call_model(CRITIC_MODEL, critic_msgs, max_tokens=400, temperature=CRITIC_TEMP, schema=CRITIC_SCHEMA)
+            critic_result, critic_logprobs = call_model(CRITIC_MODEL, critic_msgs, max_tokens=400, temperature=CRITIC_TEMP, schema=CRITIC_SCHEMA)
         except Exception as e:
             print(f"  CRITIC ERROR: {e}")
             continue
@@ -491,7 +502,7 @@ def main():
         try:
             artist_msgs = build_artist_prompt(critic_result, history)
             artist_max_tokens = 2000 if "MiniMax" in ARTIST_MODEL else 300
-            artist_result = call_model(ARTIST_MODEL, artist_msgs, max_tokens=artist_max_tokens, temperature=ARTIST_TEMP, schema=ARTIST_SCHEMA)
+            artist_result, artist_logprobs = call_model(ARTIST_MODEL, artist_msgs, max_tokens=artist_max_tokens, temperature=ARTIST_TEMP, schema=ARTIST_SCHEMA)
         except Exception as e:
             print(f"  ARTIST ERROR: {e}")
             continue
@@ -530,6 +541,8 @@ def main():
             "artist_reasoning": artist_result.get("reasoning", ""),
             "api_time_critic": round(critic_time, 2),
             "api_time_artist": round(artist_time, 2),
+            "critic_logprobs": critic_logprobs,
+            "artist_logprobs": artist_logprobs,
         }
         history.append(iteration_data)
         log_iteration(memory_dir, iteration_data)
